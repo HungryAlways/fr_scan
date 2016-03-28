@@ -8,9 +8,14 @@ $fdt_filter = "1252";
 $log_file = "update_fr_log.htm";
 $lock_tag_file = 'update_fr_blog_flag.lock';
 $passwd = "Hdjmh$1202";
+$is_log = false;
 
 function log_update($trc){
   global $log_file;
+  global $is_log;
+  
+  if(!$is_log)
+	  return;
   if(!file_exists($log_file )){
 	  touch($log_file);
   }
