@@ -39,7 +39,7 @@ tr.alt
 tr.critical
 {
   color:#000000;
-  background-color:red;
+  background-color:lightcoral;
 }
 
 tr.tbd
@@ -71,7 +71,7 @@ tr.alt:hover
 {
 background-color:#66CC99;
 }
-
+/*
 div
 {
 //width:100px;
@@ -81,7 +81,7 @@ border:1px solid black;
 border-radius:5px;
 box-shadow: 10px 10px 5px #888888;
 text-shadow: 5px 5px 5px #FF8000;
-}
+}*/
 div#div2
 {
 width:100px;
@@ -97,6 +97,7 @@ transition:10s;
 -moz-transition:10s;
 -webkit-transition:10s;
 }
+
 div#div2:hover
 {
 transform:rotate(360deg);
@@ -105,13 +106,57 @@ transform:rotate(360deg);
 -webkit-transform:rotate(360deg); /* Safari and Chrome */
 -o-transform:rotate(360deg); /* Opera */
 }
-</style>
 
+div#div4
+{
+width:100px;
+}
+</style>
+<link rel="icon" type="image/png" href="favicon.png">
 <script type="text/javascript" src="js/jquery/jquery-1.12.1.min.js"></script>
 
 <script type="text/javascript">
 var thirdPartyLink = "https://support.broadcom.com/IMS/Main.aspx?Page=MyCasesDisplay&IssueID=";
 var tecLink = "http://cares.web.alcatel-lucent.com/cgi-bin/fast/view.cgi?AR=";
+function currentWeekNumber(date) {
+  var instance;
+
+  if (typeof date === 'string' && date.length) {
+    instance = new Date(date);
+  } else if (date instanceof Date) {
+    instance = date;
+  } else {
+    instance = new Date();
+  }
+
+  // Create a copy of this date object
+  var target = new Date(instance.valueOf());
+
+  // ISO week date weeks start on monday
+  // so correct the day number
+  var dayNr = (instance.getDay() + 6) % 7;
+
+  // ISO 8601 states that week 1 is the week
+  // with the first thursday of that year.
+  // Set the target date to the thursday in the target week
+  target.setDate(target.getDate() - dayNr + 3);
+
+  // Store the millisecond value of the target date
+  var firstThursday = target.valueOf();
+
+  // Set the target to the first thursday of the year
+  // First set the target to january first
+  target.setMonth(0, 1);
+  // Not a thursday? Correct the date to the next thursday
+  if (target.getDay() !== 4) {
+    target.setMonth(0, 1 + ((4 - target.getDay()) + 7) % 7);
+  }
+
+  // The weeknumber is the number of weeks between the
+  // first thursday of the year and the thursday in the target week
+  var weekNumber = 1 + Math.ceil((firstThursday - target) / 604800000);
+  return weekNumber;
+}
 
 $(function () {
 	cnt = 0;
@@ -125,21 +170,24 @@ $(function () {
 	}
 
 	function fun(){
-		$.getJSON('http://135.251.25.50/fr_scan/get_updating_status.php', function (state) {
+		$.getJSON('http://10.242.33.172/fr_scan/get_updating_status.php', function (state) {
 			if(state.is_updating == "yes"){
 			    if(is_updating == false){
-					$("#div3").text("Updating is ongoing! " + "FDT Number:" + state.fdt);
+					$("#div3").text("Updating is ongoing! " + "FDT Number:" + state.fdt + " - last update time:" + state.last_time);
 					flash_timer = setInterval(flash,1000);
 					is_updating = true;
 				}
 			}
 			else{
                 if(is_updating == true){
-					$("#div3").text("Comments");
+					$("#div3").text("Comments - last update time" + state.last_time + ", wk" + currentWeekNumber());
 					$("#div3").attr("style", "color:black");
 					clearInterval(flash_timer);
 					is_updating = false;
 				}
+                else{
+                    $("#div3").text("Comments - last update time:" + state.last_time + ", wk" + currentWeekNumber());
+                }
 			}
 		})
 
@@ -438,7 +486,7 @@ function onblurDart(x,fr)
     x.parentElement.firstChild.style.display="";
 }
 
-function onUpdateFrList(x, prj, fdt)
+function onUpdateFrList(x, prj, fdt, force)
 {
   var xmlhttp;
 
@@ -472,7 +520,7 @@ function onUpdateFrList(x, prj, fdt)
   }
 
 
-  xmlhttp.open("GET","upload_file_auto.php"+"?prj="+prj+"&fdt="+fdt,true);
+  xmlhttp.open("GET","upload_file_auto.php"+"?prj="+prj+"&fdt="+fdt+"&force="+force,true);
   xmlhttp.timeout = 400000;	
   xmlhttp.send();
   x.disabled='disabled';
@@ -525,7 +573,7 @@ function list_table_head(){
   $col_id++;
   list_table_head_col($col_id, "Submitter", 1);
   $col_id++;	
-  list_table_head_col($col_id, "<div id='div2'>" . "<font color=red>" . "Critical:" . $severity_critical . "</font>" . "<br>" . "<font color=DeepPink>" . "Major:" . $severity_major . "</font>" . "<br>" . "<font color=green>" . "Minor:" . $severity_minor . "</font>" . "<br>" . "<font color=black>" . "Total:" . $total_fr . "</font>" . "</div>", 0);
+  list_table_head_col($col_id, "<div id='div4'>" . "Severity:<br>" . "<font color=red>" . "Critical:" . $severity_critical . "</font>" . "<br>" . "<font color=DeepPink>" . "Major:" . $severity_major . "</font>" . "<br>" . "<font color=green>" . "Minor:" . $severity_minor . "</font>" . "<br>" . "<font color=black>" . "Total:" . $total_fr . "</font>" . "</div>", 0);
   $col_id++;	
   list_table_head_col($col_id, "St", 1);
   $col_id++;
@@ -547,10 +595,10 @@ function list_table_head(){
   $col_id++;	
   list_table_head_col($col_id, "Target Date", 1);
   $col_id++;	
-/* Remove dart 
-  list_table_head_col($col_id, "DART", 1);
+//  list_table_head_col($col_id, "DART", 1);
+  list_table_head_col($col_id, "ONT Type", 1);
   $col_id++;		
-*/
+
   list_table_head_col($col_id, "<pre id='div3'>Comments</pre>", 0);
   $col_id++;	
   if($display_cor == "yes"){
@@ -614,6 +662,7 @@ function list_one_fr($row, $row_alt){
   echo "<td onclick=\"dbclkOnField(this,'$fr_id');\"><span>" . $row['target_date'] . "</span>" . "<textarea rows='1' cols='16' name='texta' style='display:none;' onfocus=\"onfocusTexa(this,'$fr_id');\" onblur=\"onblurTargetDate(this,'$fr_id');\">" . $row['target_date']  . "</textarea>" . "</td>";
 //  echo "<td ondblclick=\"dbclkOnField(this,'$fr_id');\"><span>" . $row['dart'] . "</span>" . "<textarea rows='1' cols='16' name='texta' style='display:none;' onfocus=\"onfocusTexa(this,'$fr_id');\" onblur=\"onblurDart(this,'$fr_id');\">" . $row['dart']  . "</textarea>" . "</td>";
 //  echo "<td>" . $row['dart'] . "</td>" ;
+  echo "<td>" . $row['ont_type'] . "</td>" ;
   echo "<td onclick=\"dbclkOnField(this,'$fr_id');\"><span>" . $row['comment'] . "</span>" . "<textarea rows='8' cols='64' name='texta' style='display:none;' onfocus=\"onfocusTexa(this,'$fr_id');\" onblur=\"onblurComment(this,'$fr_id');\">" . $row['comment']  . "</textarea>" . "</td>";
 
   if($display_cor == "yes"){
@@ -639,21 +688,21 @@ function list_one_fr($row, $row_alt){
 
 function show_fr(){
   $pre_engineer = "";
-  $con = mysql_connect("localhost","root","123456");
-  if (!$con)
+  $con = mysqli_connect("localhost","root","123456", "fr_db");
+  if (mysqli_connect_errno())
   {
-    die('Could not connect: ' . mysql_error());
+    printf("Connect failed: %s\n", mysqli_connect_error());
+    exit();
   }
-  mysql_select_db("fr_db", $con);
 
-  $result = mysql_query("SELECT * FROM FrClass ORDER BY severity,engineer", $con);
+  $result = mysqli_query($con, "SELECT * FROM FrClass ORDER BY severity,engineer");
 
   echo "<table id='customers' border='1px solid #98bf21'>"; 
 
   list_table_head();
 
   $row_alt = 0;
-  while($row = mysql_fetch_array($result))
+  while($row = mysqli_fetch_array($result))
   {
     if(($row["state"] != "closed")
 	   &&($row["state"] != "Duplicate")	   
@@ -672,7 +721,7 @@ function show_fr(){
   }
   echo "</table>";
   
-  mysql_close($con);
+  mysqli_close($con);
 }
 
 function count_fr(){
@@ -680,17 +729,17 @@ function count_fr(){
   global $severity_major;
   global $severity_minor;
 
-  $con = mysql_connect("localhost","root","123456");
-  if (!$con)
+  $con = mysqli_connect("localhost","root","123456", "fr_db");
+  if (mysqli_connect_errno())
   {
-    die('Could not connect: ' . mysql_error());
+    printf("Connect failed: %s\n", mysqli_connect_error());
+    exit();
   }
-  mysql_select_db("fr_db", $con);
 
-  $result = mysql_query("SELECT * FROM FrClass ORDER BY severity,engineer", $con);
+  $result = mysqli_query($con, "SELECT * FROM FrClass ORDER BY severity,engineer");
 
 
-  while($row = mysql_fetch_array($result))
+  while($row = mysqli_fetch_array($result))
   {
     if(($row["state"] != "closed")
 	   &&($row["state"] != "Duplicate")
@@ -709,7 +758,7 @@ function count_fr(){
     }
   }
 
-  mysql_close($con);
+  mysqli_close($con);
 }
 
 function count_fr_with_filter($rel, $state, $dart, $fdt, $dip){
@@ -717,16 +766,16 @@ function count_fr_with_filter($rel, $state, $dart, $fdt, $dip){
   global $severity_major;
   global $severity_minor;
 
-  $con = mysql_connect("localhost","root","123456");
-  if (!$con)
+  $con = mysqli_connect("localhost","root","123456", "fr_db");
+  if (mysqli_connect_errno())
   {
-    die('Could not connect: ' . mysql_error());
+    printf("Connect failed: %s\n", mysqli_connect_error());
+    exit();
   }
-  mysql_select_db("fr_db", $con);
 
-  $result = mysql_query("SELECT * FROM FrClass ORDER BY severity,engineer", $con);
+  $result = mysqli_query($con, "SELECT * FROM FrClass ORDER BY severity,engineer");
 
-  while($row = mysql_fetch_array($result))
+  while($row = mysqli_fetch_array($result))
   {
 	 //Release filter
 	 if(($rel != "none") && ($rel != $row["plan_rel"]))
@@ -757,6 +806,7 @@ function count_fr_with_filter($rel, $state, $dart, $fdt, $dip){
         continue;
     
 	//dart filter
+    /*
     if($dart == "yes") {
 		if(($row["dart"] != "Critical") && ($row["dart"] != "Include") && ($row["dart"] != "TBD"))
 		 continue;
@@ -765,12 +815,11 @@ function count_fr_with_filter($rel, $state, $dart, $fdt, $dip){
 	 }	  
     elseif($row["dart"] != $dart)
         continue;
+    */
 
 	//fdt filter
     if($fdt == "domain") {
-		if(($row["fdt"] != "1252") && ($row["fdt"] != "1251") && ($row["fdt"] != "1356") && ($row["fdt"] != "1343") && ($row["fdt"] != "BCMBL"))
-		 continue;
-		if(($row["fdt"] == "BCMBL") && ($row["ia"] != "dingjun he"))
+		if(($row["fdt"] != "1252") && ($row["fdt"] != "1255") && ($row["fdt"] != "1486") && ($row["fdt"] != "1559") && ($row["fdt"] != "GLMTK") && ($row["fdt"] != "BCMBL"))
 		 continue;
 	 }
 	 elseif($fdt == "all") {
@@ -793,25 +842,25 @@ function count_fr_with_filter($rel, $state, $dart, $fdt, $dip){
 
   }
 
-  mysql_close($con);
+  mysqli_close($con);
 }
 
 function show_fr_with_filter($rel, $state, $dart, $fdt, $dip){
-  $con = mysql_connect("localhost","root","123456");
-  if (!$con)
+  $con = mysqli_connect("localhost","root","123456", "fr_db");
+  if (mysqli_connect_errno())
   {
-    die('Could not connect: ' . mysql_error());
+    printf("Connect failed: %s\n", mysqli_connect_error());
+    exit();
   }
-  mysql_select_db("fr_db", $con);
 
-  $result = mysql_query("SELECT * FROM FrClass ORDER BY severity,engineer", $con);
+  $result = mysqli_query($con, "SELECT * FROM FrClass ORDER BY severity,engineer" );
 
   echo "<table id='customers' border='1px solid #98bf21'>";
 
   list_table_head();
 
   $row_alt = 0;
-  while($row = mysql_fetch_array($result))
+  while($row = mysqli_fetch_array($result))
   {
 	 if(($rel != "none") && ($rel != $row["plan_rel"]))
 		 continue;
@@ -838,7 +887,7 @@ function show_fr_with_filter($rel, $state, $dart, $fdt, $dip){
 	 }
     elseif($row["state"] != $state)
         continue;
-
+    /*
     if($dart == "yes") {
 		if(($row["dart"] != "Critical") && ($row["dart"] != "Include") && ($row["dart"] != "TBD"))
 		 continue;
@@ -847,13 +896,12 @@ function show_fr_with_filter($rel, $state, $dart, $fdt, $dip){
 	 }	  
     elseif($row["dart"] != $dart)
         continue;
+    */
 
 	//fdt filter
     if($fdt == "domain") {
-		if(($row["fdt"] != "1252") && ($row["fdt"] != "1251") && ($row["fdt"] != "1356") && ($row["fdt"] != "1343") && ($row["fdt"] != "BCMBL"))
+		if(($row["fdt"] != "1252") && ($row["fdt"] != "1255") && ($row["fdt"] != "1486") && ($row["fdt"] != "1559") && ($row["fdt"] != "GLMTK") && ($row["fdt"] != "BCMBL"))
 		 continue;
-		if(($row["fdt"] == "BCMBL") && ($row["ia"] != "dingjun he"))
-		 continue;		
 	 }
 	 elseif($fdt == "all") {
 	 }	  
@@ -872,7 +920,7 @@ function show_fr_with_filter($rel, $state, $dart, $fdt, $dip){
   }
   echo "</table>";
 
-  mysql_close($con);
+  mysqli_close($con);
 }
 
 
@@ -990,7 +1038,7 @@ else
 if(isset($_GET["fdt"]))
 	$fdt_filter = $_GET["fdt"];
 else
-   $fdt_filter = "1252";
+   $fdt_filter = "domain";
 
 if(isset($_GET["dip"]))
 	$dip_filter = $_GET["dip"];
@@ -1008,14 +1056,17 @@ if(isset($_GET["cor"]))
 else
    $display_cor = "no";
 
-
+if(isset($_GET["force"]))
+	$force = $_GET["force"];
+else
+   $force = "no";
 
 count_fr_with_filter( $plan_project, $state_filter, $dart_filter, $fdt_filter, $dip_filter);
 show_fr_with_filter( $plan_project, $state_filter, $dart_filter, $fdt_filter, $dip_filter);
 
 if(isset($_GET["update"]))
-	echo "<input type='button' value='Update Team FR List' onclick=\"onUpdateFrList(this, '$plan_project', '$fdt_filter');\">";
-
+	echo "<input type='button' value='Update Team FR List' onclick=\"onUpdateFrList(this, '$plan_project', '$fdt_filter', '$force');\">";
+phpinfo();
 ?>
 
 </body>
