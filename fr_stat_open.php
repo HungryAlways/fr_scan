@@ -1,61 +1,9 @@
 <?php
-$category = array(
-				"this week" => array("1-Critical" => 0, "2-Major" => 0, "3-Minor" =>0),
-				"not take" => array("1-Critical" => 0, "2-Major" => 0, "3-Minor" =>0),
-				"clarify" => array("1-Critical" => 0, "2-Major" => 0, "3-Minor" =>0),
-				"not reproduced by sw" => array("1-Critical" => 0, "2-Major" => 0, "3-Minor" =>0),
-				"not reproduced by submitter" => array("1-Critical" => 0, "2-Major" => 0, "3-Minor" =>0),
-				"unknown" => array("1-Critical" => 0, "2-Major" => 0, "3-Minor" =>0),
-				 "Total" => array("1-Critical" => 0, "2-Major" => 0, "3-Minor" =>0),
-				"third party" => array("1-Critical" => 0, "2-Major" => 0, "3-Minor" =>0),
-				"new incoming" => array("1-Critical" => 0, "2-Major" => 0, "3-Minor" =>0)
-				 );
-$category_got = array("Total");
-$category_got_counter = array("Total" => array("1-Critical" => 0, "2-Major" => 0, "3-Minor" =>0));
-function get_category($cat, $sev){
-	global $category_got;
-	global $category_got_counter;
-	$is_exist = false;
-	if($cat == null)
-		$cat = "Unknown";
+$category_got_counter = array("1-Critical" => 0, "2-Major" => 0, "3-Minor" =>0);
 
-	foreach($category_got as $val){
-		if($val == $cat){
-			$is_exist = true;
-			break;
-		}
-	}
-	
-	if(!$is_exist){
-		$category_got[] = $cat;
-		$category_got_counter["$cat"] = array("1-Critical" => 0, "2-Major" => 0, "3-Minor" =>0);
-	}
-    $category_got_counter["$cat"]["$sev"]++;
-	$category_got_counter["Total"]["$sev"]++;
-}
 
-function inc_category($cat, $sev){
-	global $category;
-	$flag = false;
-	if($cat == "")
-		$cat = "unknown";
-
-	foreach ($category as $key => $value){
-		if($key == $cat){
-			$category["$key"]["$sev"]++;
-			$flag = true;
-			break;
-		}
-	}
-	
-	if($flag == false)
-		$category["unknown"]["$sev"]++;
-	
-	$category["Total"]["$sev"]++;
-}
-
-function count_fr_with_filter($rel, $fdt){
-  global $category;
+function count_fr_with_filter($rel, $fdt, $cat){
+  global $category_got_counter;
 
   $con = mysql_connect("localhost","root","123456");
   if (!$con)
@@ -78,16 +26,19 @@ function count_fr_with_filter($rel, $fdt){
   while($row = mysql_fetch_array($result))
   {
 	  if($fdt == "domain"){
-		if(($row["fdt"] != "1252") && ($row["fdt"] != "1251") && ($row["fdt"] != "1356") && ($row["fdt"] != "1343") && ($row["fdt"] != "BCMBL"))
+		if(($row["fdt"] != "1252") && ($row["fdt"] != "1251") && ($row["fdt"] != "1356") && ($row["fdt"] != "1343"))
 		 continue;
-		if(($row["fdt"] == "BCMBL") && ($row["ia"] != "dingjun he"))
+	  }
+	  if($cat == "fcu"){
+		if($row["diph"] != "FCU")
 		 continue;
 	  }
 
 	  if(($row["state"] == "New") || ($row["state"] == "Accepted") || ($row["state"] == "Hold") ||($row["state"] == "Query")){
-		get_category($row["target_date"], $row["severity"]);
-		inc_category($row["target_date"], $row["severity"]);
+		$sev = $row["severity"];
+		$category_got_counter["$sev"]++;
       }
+
   }
   mysql_close($con);
 }
@@ -95,18 +46,25 @@ function count_fr_with_filter($rel, $fdt){
 
 //Main Entry
 //Filter options
-if(isset($_GET["plan_rel"]))
+if(isset($_GET["plan_rel"]) && ($_GET["plan_rel"] != ""))
 	$rel_filter = $_GET["plan_rel"];
 else
    $rel_filter = "none";
 
-if(isset($_GET["fdt"]))
+if((isset($_GET["fdt"])) && ($_GET["fdt"] != ""))
 	$fdt_filter = $_GET["fdt"];
 else
    $fdt_filter = "domain";
 
+if((isset($_GET["cat"])) && ($_GET["cat"] != ""))
+	$cat_filter = $_GET["cat"];
+else
+   $cat_filter = "none";
+
 header('Content-Type: text/json');
-count_fr_with_filter($rel_filter, $fdt_filter);
+count_fr_with_filter($rel_filter, $fdt_filter, $cat_filter);
+
+/*
 $data_critical = array();
 $data_major = array();
 $data_minor = array();
@@ -156,7 +114,13 @@ $return_data = array(
 											$category["unknown"]["3-Minor"]))
 					  )
 				      );
+*/
 
+$return_data = array(
+	array("name" => "1-Critical","y" => $category_got_counter["1-Critical"]),
+	array("name" => "2-Major","y" => $category_got_counter["2-Major"]),
+	array("name" => "3-Minor","y" => $category_got_counter["3-Minor"])
+);
 echo(json_encode($return_data));
 ?>
 

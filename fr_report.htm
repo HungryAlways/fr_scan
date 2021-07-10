@@ -5,6 +5,7 @@
 		<title>Interworking/Forwarding Domain FR Report</title>
 		<script type="text/javascript" src="js/jquery/jquery-1.12.1.min.js"></script>
 		<script type="text/javascript" src="js/jquery/jquery.query-2.1.7.js"></script>
+		<link rel="icon" type="image/png" href="report.png">
 
 		<style type="text/css">
 			${demo.css}
@@ -14,61 +15,99 @@
 			var rel = $.query.get('plan_rel');
 			var fdt = $.query.get('fdt');
   			var state = $.query.get('state');
-			if(state == "open"){
-				$.getJSON('http://135.251.25.50/fr_scan/fr_stat_open.php?plan_rel=' + rel + '&fdt='+ fdt, function (stats) {
+			var cat = $.query.get('cat');
+			if((state == "open") && (cat == "fcu")){
+				$.getJSON('http://135.251.25.50/fr_scan/fr_stat_open.php?plan_rel=' + rel + '&fdt='+ fdt + '&cat=' + cat, function (stats) {
+					var total = 0;
+					for(var key in stats){
+						total += stats[key].y;
+					}
 					$('#container').highcharts({
 						chart: {
-							type: 'column'
+							plotBackgroundColor: null,
+							plotBorderWidth: null,
+							plotShadow: false,
+							type: 'pie'
 						},
 						title: {
-							text: 'Interworking/Forwarding Domain Open FR Status for ' + rel
+							text: 'Interworking/Forwarding Domain FR Analysis'
 						},
-						xAxis: {
-							categories: stats.categories
-						},
-						yAxis: {
-							min: 0,
-							title: {
-								text: 'FR Number'
-							},
-							stackLabels: {
-								enabled: true,
-								style: {
-									fontWeight: 'bold',
-									color: (Highcharts.theme && Highcharts.theme.textColor) || 'gray'
-								}
-							}
-						},
-						legend: {
-							align: 'right',
-							x: -30,
-							verticalAlign: 'top',
-							y: 25,
-							floating: true,
-							backgroundColor: (Highcharts.theme && Highcharts.theme.background2) || 'white',
-							borderColor: '#CCC',
-							borderWidth: 1,
-							shadow: false
-						},
+						subtitle: {
+							text: 'Total ' + total + ' FRs.'
+						},		
 						tooltip: {
-							headerFormat: '<b>{point.x}</b><br/>',
-							pointFormat: '{series.name}: {point.y}<br/>Total: {point.stackTotal}'
+							pointFormat: 'Number: <b>{point.y}</b>'
 						},
 						plotOptions: {
-							column: {
-								stacking: 'normal',
+							pie: {
+								allowPointSelect: true,
+								cursor: 'pointer',
+								colors: ["red", "yellow", "green"],
 								dataLabels: {
 									enabled: true,
-									color: (Highcharts.theme && Highcharts.theme.dataLabelsColor) || 'white',
+									format: '<b>{point.name}</b>: {point.y}',
 									style: {
-										textShadow: '0 0 3px black'
+										color: (Highcharts.theme && Highcharts.theme.contrastTextColor) || 'black'
 									}
 								}
 							}
 						},
-						series: stats.series
-					});
-				});
+						series: [{
+							name: 'Ratio',
+							colorByPoint: true,
+							data: stats
+						}]
+					}); //highcharts
+				});//getJSON
+			}
+			else if(state == "open"){
+				$.getJSON('http://135.251.25.50/fr_scan/fr_stat_open.php?plan_rel=' + rel + '&fdt='+ fdt + '&cat=' + cat, function (stats) {
+					var total = 0;
+					for(var key in stats){
+						total += stats[key].y;
+					}
+					$('#container').highcharts({
+						chart: {
+							plotBackgroundColor: null,
+							plotBorderWidth: null,
+							plotShadow: false,
+							type: 'pie'
+						},
+						title: {
+							text: 'Interworking/Forwarding Domain FR Analysis'
+						},
+						subtitle: {
+							text: 'Total ' + total + ' FRs.'
+						},		
+						tooltip: {
+							pointFormat: 'Number: <b>{point.y}</b>'
+						},
+						plotOptions: {
+							pie: {
+								allowPointSelect: true,
+								cursor: 'pointer',
+								colors: ["red", "yellow", "green"],
+								dataLabels: {
+									enabled: true,
+									format: '<b>{point.name}</b>: {point.y}',
+									style: {
+										color: (Highcharts.theme && Highcharts.theme.contrastTextColor) || 'black'
+									}
+								}
+							}
+						},
+						series: [{
+							name: 'Ratio',
+							colorByPoint: true,
+							data: stats
+						}]
+					}); //highcharts
+					
+					//var chart = $('#container').highcharts();
+            		//var svg = chart.getSVG();
+        			//document.body.innerHTML += svg;
+
+				});//getJSON
 			}
 			else{
 				$.getJSON('http://135.251.25.50/fr_scan/fr_stat.php?plan_rel=' + rel, function (stats) {
@@ -109,6 +148,9 @@
 					}); //highcharts
 				});//getJSON
 			}//else for open
+
+
+
 		});//function()
 		</script>
 	</head>
