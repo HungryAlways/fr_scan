@@ -2,39 +2,34 @@
 // example of how to use basic selector to retrieve HTML contents
 include('../simplehtmldom/simple_html_dom.php');
 
-//$web_side_lnk = "http://devws165.be.alcatel-lucent.com:8889/query/";
-//$web_side_lnk = "https://jiradc2.int.net.nokia.com/issues/";
-//$web_side_lnk = "https://jiradc2.int.net.nokia.com/rest/api/latest/project/BBDHB/versions";
-//$web_side_lnk = "https://jiradc2.int.net.nokia.com/rest/api/latest/search?jql=issueType%20in%20(Bug)%20AND%20project%20in%20(%22BBDHB%22)&fields=key,issuetype,status,summary,reporter,assignee,assignee,resolution,customfield_11890,versions,fixVersions,customfield_14545,created,custom";
-//$web_side_lnk = "https://jiradc2.int.net.nokia.com/rest/api/latest/search?jql=issueType%20in%20(Bug)%20AND%20project%20in%20(%22BBDHB%22)%20AND%20%22Work%20Team%22%20in%20(%22SH:%20DH-WLan%22)&fields=key,issuetype,status,summary,reporter,assignee,assignee,resolution,customfield_11890,versions,fixVersions,customfield_14545,customfield_37722,created,custom,customfield_37100,customfield_27892&startAt=0&maxResults=1000";
 $web_side_lnk = "https://jiradc2.ext.net.nokia.com/rest/api/latest/search?jql=issueType%20in%20%28Bug%29%20AND%20project%20in%20%28%22BBDHB%22%29%20AND%20%22Work%20Team%22%20in%20%28%22SH:%20DH-WLan%22%29&fields=key,issuetype,status,summary,reporter,assignee,assignee,resolution,customfield_11890,versions,fixVersions,customfield_14545,customfield_37722,created,custom,customfield_37100,customfield_27892&startAt=0&maxResults=1000";
-//$web_side_lnk_pre = "https://jiradc2.int.net.nokia.com/rest/api/latest/search?jql=issueType%20in%20(Bug)%20AND%20project%20in%20(%22BBDHB%22)%20AND%20%22Work%20Team%22%20in%20(%22";
-$web_side_lnk_pre = "https://jiradc2.ext.net.nokia.com/rest/api/latest/search?jql=issueType%20in%20%28Bug%29%20AND%20project%20in%20%28%22BBDHB%22%29%20AND%20%22Work%20Team%22%20in%20%28%22";
-//$web_side_lnk_suf_fdt = "%22)";
+//$web_side_lnk_pre = "https://jiradc2.ext.net.nokia.com/rest/api/latest/search?jql=issueType%20in%20%28Bug%29%20AND%20project%20in%20%28%22BBDHB%22%29%20AND%20%22Work%20Team%22%20in%20%28%22";
+$web_side_lnk_pre = "https://jiradc2.ext.net.nokia.com/rest/api/latest/search?jql=issueType%20in%20%28Bug";
+$web_side_lnk_prod = "%29%20AND%20project%20in%20%28%22"; // suffix with prod
+$web_side_lnk_fdt_bbdhb = "%22%29%20AND%20%22Work%20Team%22%20in%20%28%22"; // suffix with fdt
+$web_side_lnk_fdt_bbdprod = "%22%29%20AND%20%22cf[14545]%22%20in%20%28%22";
 $web_side_lnk_suf_fdt = "%22%29";
-//$web_side_lnk_pre_prj = "%20AND%20affectedVersion%20in%20(%22";
 $web_side_lnk_pre_prj = "%20AND%20fixVersion%20in%20%28%22";
-//$web_side_lnk_suf_prj = "%22)";
 $web_side_lnk_suf_prj = "%22%29";
-//$web_side_lnk_suf_open = "%20AND%20status%20in%20(New,%20Accepted,%20Hold,%20Query)";
 $web_side_lnk_suf_open = "%20AND%20status%20in%20%28New,%20Accepted,%20Hold,%20Query%29";
-$web_side_lnk_last = "&fields=key,issuetype,status,summary,reporter,assignee,assignee,resolution,customfield_11890,versions,fixVersions,customfield_14545,customfield_37722,created,custom,customfield_37100,customfield_32017,customfield_27892&startAt=0&maxResults=1000";
+$web_side_lnk_last = "&fields=key,issuetype,status,summary,reporter,assignee,assignee,resolution,customfield_11890,versions,fixVersions,customfield_14545,customfield_37722,created,custom,customfield_37100,customfield_32017,customfield_27892,customfield_19503,customfield_37061&startAt=0&maxResults=1000";
 
 $fdt_filter = "1252";
 $log_file = "update_fr_log.htm";
 $last_update_time_file = "last_update_time.log";
 $lock_tag_file = 'update_fr_blog_flag.lock';
-$passwd = "Hdjmh@1013";
+$passwd = "Hdjmh@1202";
 $is_log = true;
 $is_skip_updating_for_same_state = true;
 $state_open_list =  array("New", "Accepted", "Query", "Hold");
 $mysql_con = NULL;
-$proxy_ip = "135.251.33.30";
+$proxy_ip = "135.251.33.31";
 $proxy_port = 8080;
 $nwf_fdt_list=array("1261", "1530", "1545");
 $nwf_plan_rel_prefix="NWF";
 $force="no";
 $prj_filter="none";
+$prod = "BBDHB";
 
 function is_nwf_fdt($fdt){
 	global $nwf_fdt_list;
@@ -209,10 +204,10 @@ function set_fr_state_to_close($prj, $fdt, $fr_list_in_web){
   return "OK";
 }
 
-function is_skipped($state, $engineer, $sev, $row, $fdt, $plan_rel, $ec, $ont_type){
+function is_skipped($state, $engineer, $sev, $row, $fdt, $plan_rel, $ec, $ont_type, $business_line){
   log_update("is_skipped: " . $row["state"] . "=" . $state  . "? " . $row["engineer"] . "=" . $engineer . "? " . $row["severity"] . "=" . $sev . "? " . $row["fdt"] . "=" . $fdt . "? " . $row["plan_rel"] . "=" . $plan_rel . "? " . $row["ont_type"] . "=" . $ont_type . "? ");
 	//if(($state == $row["state"]) && ($engineer == $row["engineer"]) && ($sev == $row["severity"])  && ($fdt == $row["fdt"])  && ($plan_rel == $row["plan_rel"]) && ($row["ont_type"] != $ont_type)  && ($row["ec"] == $ec))
-  if(($state == $row["state"]) && ($engineer == $row["engineer"]) && ($sev == $row["severity"])  && ($fdt == $row["fdt"])  && ($plan_rel == $row["plan_rel"])  && ($row["ont_type"] == $ont_type))
+  if(($state == $row["state"]) && ($engineer == $row["engineer"]) && ($sev == $row["severity"])  && ($fdt == $row["fdt"])  && ($plan_rel == $row["plan_rel"])  && ($row["ont_type"] == $ont_type)  && ($row["business_line"] == $business_line))
 		return true;
 	return false;
 }
@@ -234,6 +229,7 @@ function insert_fr_to_db($fr_info){
   $domain = $fr_info[13]; 
   $engineer = $fr_info[14]; 
   $ont_type = $fr_info[15]; 
+  $business_line = $fr_info[16]; 
   $rcr = "";
   global $is_skip_updating_for_same_state;
   global $state_open_list;
@@ -257,7 +253,7 @@ function insert_fr_to_db($fr_info){
         $is_fr_exist = true;
 	  
     log_update("Updating FR : " . $fr_id . ",current state is : " . $row["state"]);
-	  if($row && is_skipped($state, $engineer, $severity, $row, $fdt, $plan_rel, $ec, $ont_type) && ($force == "no")){ 
+	  if($row && is_skipped($state, $engineer, $severity, $row, $fdt, $plan_rel, $ec, $ont_type, $business_line) && ($force == "no")){ 
 		    log_update("Skip FR : " . $fr_id);
 		    return;
 	  }
@@ -271,7 +267,7 @@ function insert_fr_to_db($fr_info){
 
    if(!$is_fr_exist){
 	     log_update("INSERT INTO FrClass (fr_id, sub_date, severity, state, brief_des, fdt, ia, orig_proj, plan_rel, diph, ec, domain, engineer, dart, cor, rca_rept, changeset, rca_con, clone_info, submitter, reason, rcr, ont_type) VALUES('$fr_id', '$sub_date','$severity','$state','$fr_description','$fdt','$ia','$orig_proj','$plan_rel','$diph','$ec','$domain','$fr_engineer', '$dart', '$cor', '$rca', '$change_set', '$rca_contact', '$clone_info', '$submitter', '$reason', '$rcr', '$ont_type')", "red");
-     if(mysqli_query($mysql_con, "INSERT INTO FrClass (fr_id, sub_date, severity, state, brief_des, fdt, ia, orig_proj, plan_rel, diph, ec, domain, engineer, dart, cor, rca_rept, changeset, rca_con, clone_info, submitter, reason, rcr, ont_type) VALUES('$fr_id', '$sub_date','$severity','$state','$fr_description','$fdt','$ia','$orig_proj','$plan_rel','$diph','$ec','$domain','$fr_engineer', '$dart', '$cor', '$rca', '$change_set', '$rca_contact', '$clone_info', '$submitter', '$reason', '$rcr', '$ont_type')")){
+     if(mysqli_query($mysql_con, "INSERT INTO FrClass (fr_id, sub_date, severity, state, brief_des, fdt, ia, orig_proj, plan_rel, diph, ec, domain, engineer, dart, cor, rca_rept, changeset, rca_con, clone_info, submitter, reason, rcr, ont_type, business_line) VALUES('$fr_id', '$sub_date','$severity','$state','$fr_description','$fdt','$ia','$orig_proj','$plan_rel','$diph','$ec','$domain','$fr_engineer', '$dart', '$cor', '$rca', '$change_set', '$rca_contact', '$clone_info', '$submitter', '$reason', '$rcr', '$ont_type', '$business_line')")){
          log_update("insert successfully!");
      }
      else{
@@ -280,7 +276,7 @@ function insert_fr_to_db($fr_info){
   }
   else { //update
 		  log_update("UPDATE FrClass SET sub_date = '$sub_date',severity = '$severity',state = '$state',brief_des = '$fr_description',fdt = '$fdt',ia = '$ia',orig_proj = '$orig_proj',plan_rel = '$plan_rel',diph = '$diph',engineer = '$fr_engineer',submitter = '$submitter',reason = '$reason',rcr = '$rcr',ont_type='$ont_type' WHERE fr_id = '$fr_id'" , "yellow");
-      if(mysqli_query($mysql_con, "UPDATE FrClass SET sub_date = '$sub_date',severity = '$severity',state = '$state',brief_des = '$fr_description',fdt = '$fdt',ia = '$ia',orig_proj = '$orig_proj',plan_rel = '$plan_rel',diph = '$diph',engineer = '$fr_engineer',submitter = '$submitter',reason = '$reason',rcr = '$rcr',ont_type='$ont_type' WHERE fr_id = '$fr_id'")){
+      if(mysqli_query($mysql_con, "UPDATE FrClass SET sub_date = '$sub_date',severity = '$severity',state = '$state',brief_des = '$fr_description',fdt = '$fdt',ia = '$ia',orig_proj = '$orig_proj',plan_rel = '$plan_rel',diph = '$diph',engineer = '$fr_engineer',submitter = '$submitter',reason = '$reason',rcr = '$rcr',ont_type='$ont_type',business_line='$business_line' WHERE fr_id = '$fr_id'")){
           log_update("upadte successfully!");
       }
       else{
@@ -339,9 +335,10 @@ function parse_fr_html_table($html, $prj){
 function get_html_page($url_fr){
   global $proxy_port;
   global $proxy_ip;
+  global $passwd;
 
   $cookie_jar = dirname(__FILE__)."/jira.cookie";
-  $headers = array('Content-Type: application/json', 'Accept: application/json', 'Authorization: Basic ' . base64_encode("dingjunh:Hdjmh@1013"));
+  $headers = array('Content-Type: application/json', 'Accept: application/json', 'Authorization: Basic ' . base64_encode("dingjunh:" . $passwd));
   
   $ch = curl_init();
 
@@ -391,6 +388,7 @@ function update_frs_for_one_project($prj){
   global $web_side_lnk;
   global $fdt_filter;
   global $web_side_lnk_pre, $web_side_lnk_suf_fdt, $web_side_lnk_pre_prj, $web_side_lnk_suf_prj , $web_side_lnk_last;
+  global $prod, $web_side_lnk_prod,$web_side_lnk_fdt_bbdhb,$web_side_lnk_fdt_bbdprod;
   $fr_array = array();
   $fr_list_in_web = array();
   $week = get_week_number();
@@ -399,8 +397,10 @@ function update_frs_for_one_project($prj){
   $cnt_closed = 0;
   
   $fr_number = 0;
-  //$html_link = $web_side_lnk;
-  $html_link = $web_side_lnk_pre . urlencode($fdt_filter) . $web_side_lnk_suf_fdt;
+  if($prod == "BBDPROD")
+      $html_link = $web_side_lnk_pre . $web_side_lnk_prod . $prod . $web_side_lnk_fdt_bbdprod . urlencode($fdt_filter) . $web_side_lnk_suf_fdt;
+  else
+      $html_link = $web_side_lnk_pre . $web_side_lnk_prod . $prod . $web_side_lnk_fdt_bbdhb . urlencode($fdt_filter) . $web_side_lnk_suf_fdt;
   
   if($prj_filter != "none"){
       $html_link = $html_link . $web_side_lnk_pre_prj . $prj . $web_side_lnk_suf_prj . $web_side_lnk_last;
@@ -433,7 +433,10 @@ function update_frs_for_one_project($prj){
           $fr_array[3] = $issue->fields->customfield_27892->value;
           $fr_array[4] = $issue->fields->status->name;
           $fr_array[5] = $issue->fields->summary;
-          $fr_array[6] = $issue->fields->customfield_37100->value;
+		  if($prod == "BBDPROD")
+			  $fr_array[6] = $issue->fields->customfield_14545->value; //team
+		  else
+              $fr_array[6] = $issue->fields->customfield_37100->value;
           $fr_array[7] = $issue->fields->assignee->name;
           $fr_array[8] = $issue->fields->reporter->name;
           $fr_array[9] = $issue->fields->versions[0]->name;
@@ -442,11 +445,12 @@ function update_frs_for_one_project($prj){
           $fr_array[12] = "";  //ec
           $fr_array[13] = "";  //domain
           $fr_array[14] = $issue->fields->assignee->name;  //engineer
-          $fr_array[15] = $issue->fields->customfield_37722->value;  //board
+          $fr_array[15] = $issue->fields->customfield_19503->child->value;  //board
+		  $fr_array[16] = $issue->fields->customfield_37061[0]->value;  //product
           
           //var_dump($fr_array);
           
-	        insert_fr_to_db($fr_array); 
+	      insert_fr_to_db($fr_array); 
           array_push($fr_list_in_web, $fr_array[0]);      
           //var_dump($fr_list_in_web);    
           
@@ -467,17 +471,25 @@ function update_frs_for_one_project($prj){
       set_fr_state_to_close($prj, $fdt_filter, $fr_list_in_web);
   }
   else{
-      log_update("update_frs_for_one_project: FR number is 0 for project " . $prj . "!");
+	  //set_fr_state_to_close($prj, $fdt_filter, $fr_list_in_web);
+      log_update("update_frs_for_one_project: FR number is 0 for project " . $prj . "!" . ($html_json == null)?"html_json==null":"html_json==null");
   }
 }
 
 function get_rel_list_for_fdt($fdt){
   global $web_side_lnk_pre, $web_side_lnk_suf_fdt, $web_side_lnk_suf_open, $web_side_lnk_last;
+  global $prod, $web_side_lnk_prod,$web_side_lnk_fdt_bbdhb,$web_side_lnk_fdt_bbdprod;
   $rel_list = array();
   $x = 0;
 
-  $html_link = $web_side_lnk_pre . urlencode($fdt) . $web_side_lnk_suf_fdt . $web_side_lnk_suf_open . $web_side_lnk_last;
+  //$html_link = $web_side_lnk_pre . urlencode($fdt) . $web_side_lnk_suf_fdt . $web_side_lnk_suf_open . $web_side_lnk_last;
+  if($prod == "BBDPROD")
+      $html_link = $web_side_lnk_pre . $web_side_lnk_prod . $prod . $web_side_lnk_fdt_bbdprod . urlencode($fdt) . $web_side_lnk_suf_fdt . $web_side_lnk_suf_open . $web_side_lnk_last;
+  else
+      $html_link = $web_side_lnk_pre . $web_side_lnk_prod . $prod . $web_side_lnk_fdt_bbdhb . urlencode($fdt) . $web_side_lnk_suf_fdt . $web_side_lnk_suf_open . $web_side_lnk_last;
   //var_dump($html_link);
+  
+  log_update("get_rel_list_for_fdt with link: $html_link!");
   
   $html_doc = get_html_page($html_link);
   if($html_doc == FALSE){
@@ -671,6 +683,13 @@ if(isset($_GET["fdt"]) && ($_GET["fdt"] != "domain")){
 
 if(isset($_GET["force"])){
     $force = $_GET["force"];
+}
+
+if(isset($_GET["prod"])){
+    $prod = $_GET["prod"];
+}
+else {
+    $prod = "BBDHB";	
 }
 
 $mysql_con = mysqli_connect("localhost","root","123456", "fr_db");
