@@ -502,6 +502,8 @@ function update_frs_for_one_project($prj){
       $stats['open_minor'] = 0;
       $stats['incoming'] = 0;
       update_burn_down_stats($week, $wkday, $fdt_filter, $prj, $stats);	  
+	  
+	  set_fr_state_to_close($prj, $fdt_filter, $fr_list_in_web);
   }
 }
 
