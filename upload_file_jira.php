@@ -12,7 +12,7 @@ $web_side_lnk_suf_fdt = "%22%29";
 $web_side_lnk_pre_prj = "%20AND%20fixVersion%20in%20%28%22";
 $web_side_lnk_suf_prj = "%22%29";
 $web_side_lnk_suf_open = "%20AND%20status%20in%20%28New,%20Accepted,%20Hold,%20Query%29";
-$web_side_lnk_last = "&fields=key,issuetype,status,summary,reporter,assignee,assignee,resolution,customfield_11890,versions,fixVersions,customfield_14545,customfield_37722,created,custom,customfield_37100,customfield_32017,customfield_27892,customfield_19503,customfield_37061&startAt=0&maxResults=1000";
+$web_side_lnk_last = "&fields=key,issuetype,status,summary,reporter,assignee,assignee,resolution,customfield_11890,versions,fixVersions,customfield_14545,customfield_37722,created,custom,customfield_37100,customfield_32017,customfield_27892,customfield_19503,customfield_37061,issuelinks&startAt=0&maxResults=1000";
 
 $fdt_filter = "1252";
 $log_file = "update_fr_log.htm";
@@ -70,7 +70,7 @@ function get_burn_down_stats($week, $day, $fdt, $rel){
   $result = mysqli_query($mysql_con, "SELECT * FROM BurnDownStats " . "WHERE week = " . "'". "$last_week" . "'" . " AND fdt = "  . "'" . "$fdt" . "'"  . " AND wkday = "  . "'" . "$last_day" . "'");
   while($row = mysqli_fetch_assoc($result))
   {
-	  log_update("get_burn_down_stats yesterday's record: !" . $row['fdt'] . $row['week'] . $row['wkday'] . $row['rel']);
+	log_update("get_burn_down_stats yesterday's record: !" . $row['fdt'] . $row['week'] . $row['wkday'] . $row['rel']);
     array_push($yesterday_burn_list, $row); 
   }  
   mysqli_free_result($result);
@@ -107,6 +107,9 @@ function get_burn_down_stats($week, $day, $fdt, $rel){
   $default_stats['imcoming'] = 0;
   $default_stats['handled'] = 0;
   $default_stats['open'] = 0;
+  $default_stats['open_critical'] = 0;
+  $default_stats['open_major'] = 0;
+  $default_stats['open_minor'] = 0;
   $default_stats['closed'] = 0;
   
   mysqli_free_result($result);
@@ -123,10 +126,13 @@ function update_burn_down_stats($week, $day, $fdt, $rel, $stats){
   $incoming = $stats['incoming'];
   $handled = $stats['handled'];
   $open = $stats['open'];
+  $open_critical = $stats['open_critical'];
+  $open_major = $stats['open_major'];
+  $open_minor = $stats['open_minor'];
   $closed = $stats['closed'];
 
-  log_update("UPDATE BurnDownStats SET incoming = '$incoming',handled = '$handled',open = '$open' WHERE week = '$week' AND fdt = '$fdt' AND rel = '$rel'  AND day = '$day'");
-  mysqli_query($mysql_con, "UPDATE BurnDownStats SET incoming = '$incoming',handled = '$handled',open = '$open',closed = '$closed' WHERE week = '$week' AND fdt = '$fdt' AND rel = '$rel'  AND wkday = '$day'");
+  log_update("UPDATE BurnDownStats SET incoming = '$incoming',handled = '$handled',open = '$open',open_critical = '$open_critical',open_major = '$open_major',open_minor = '$open_minor',closed = '$closed' WHERE week = '$week' AND fdt = '$fdt' AND rel = '$rel'  AND wkday = '$day'");
+  mysqli_query($mysql_con, "UPDATE BurnDownStats SET incoming = '$incoming',handled = '$handled',open = '$open',open_critical = '$open_critical',open_major = '$open_major',open_minor = '$open_minor',closed = '$closed' WHERE week = '$week' AND fdt = '$fdt' AND rel = '$rel'  AND wkday = '$day'");
 
 }
 
@@ -394,6 +400,9 @@ function update_frs_for_one_project($prj){
   $week = get_week_number();
   $wkday = get_week_day();
   $cnt_open = 0;
+  $cnt_open_critical = 0;
+  $cnt_open_major = 0;
+  $cnt_open_minor = 0;
   $cnt_closed = 0;
   
   $fr_number = 0;
@@ -430,7 +439,7 @@ function update_frs_for_one_project($prj){
           $fr_array[0] = $issue->key;
           $fr_array[1] = $issue->fields->created;
           $fr_array[2] = "";  //priority
-          $fr_array[3] = $issue->fields->customfield_27892->value;
+          $fr_array[3] = $issue->fields->customfield_27892->value; //severity
           $fr_array[4] = $issue->fields->status->name;
           $fr_array[5] = $issue->fields->summary;
 		  if($prod == "BBDPROD")
@@ -454,8 +463,15 @@ function update_frs_for_one_project($prj){
           array_push($fr_list_in_web, $fr_array[0]);      
           //var_dump($fr_list_in_web);    
           
-          if(($issue->fields->status->name == "New") || ($issue->fields->status->name == "Accepted")  || ($issue->fields->status->name == "Query")  || ($issue->fields->status->name == "Hold"))
+          if(($issue->fields->status->name == "New") || ($issue->fields->status->name == "Accepted")  || ($issue->fields->status->name == "Query")  || ($issue->fields->status->name == "Hold")){
               $cnt_open++;
+              if($issue->fields->customfield_27892->value == "Critical")
+              	$cnt_open_critical++;
+              if($issue->fields->customfield_27892->value == "Major")
+              	$cnt_open_major++;
+              if($issue->fields->customfield_27892->value == "Minor")
+              	$cnt_open_minor++;	
+          }
           else
               $cnt_closed++;
       }
@@ -465,6 +481,9 @@ function update_frs_for_one_project($prj){
       $stats['handled'] = $cnt_closed;
       $stats['closed'] = $cnt_closed;
       $stats['open'] = $cnt_open;
+      $stats['open_critical'] = $cnt_open_critical;
+      $stats['open_major'] = $cnt_open_major;
+      $stats['open_minor'] = $cnt_open_minor;
       $stats['incoming'] = 0;
       update_burn_down_stats($week, $wkday, $fdt_filter, $prj, $stats);
               
@@ -473,6 +492,16 @@ function update_frs_for_one_project($prj){
   else{
 	  //set_fr_state_to_close($prj, $fdt_filter, $fr_list_in_web);
       log_update("update_frs_for_one_project: FR number is 0 for project " . $prj . "!" . ($html_json == null)?"html_json==null":"html_json==null");
+      //update the stats
+      $stats = get_burn_down_stats($week, $wkday, $fdt_filter, $prj);
+      $stats['handled'] = 0;
+      $stats['closed'] = 0;
+      $stats['open'] = 0;
+      $stats['open_critical'] = 0;
+      $stats['open_major'] = 0;
+      $stats['open_minor'] = 0;
+      $stats['incoming'] = 0;
+      update_burn_down_stats($week, $wkday, $fdt_filter, $prj, $stats);	  
   }
 }
 
@@ -519,7 +548,9 @@ function get_open_rel_list_for_fdt_in_db($fdt){
   $rel_list = array();
   $x = 0;
   global $mysql_con;
-
+  $week = get_week_number();
+  $wkday = get_week_day();
+  
   $result = mysqli_query($mysql_con, "SELECT * FROM FrClass WHERE fdt = "  . "'" . "$fdt" . "'");
   log_update("SELECT * FROM FrClass ORDER BY plan_rel WHERE fdt = "  . "'" . "$fdt" . "'");
   while($row = mysqli_fetch_array($result))
@@ -534,6 +565,16 @@ function get_open_rel_list_for_fdt_in_db($fdt){
     }
   }
 
+  $result = mysqli_query($mysql_con, "SELECT * FROM BurnDownStats " . "WHERE week = " . "'". "$week" . "'" . " AND fdt = "  . "'" . "$fdt" . "'" . " AND wkday = "  . "'" . "$wkday" . "'");
+  while($row = mysqli_fetch_array($result))
+  {
+    if($row["open"] != 0){
+        log_update("Get " . $row["rel"] . " with open issues.");
+		if(!in_array($row["rel"], $rel_list))
+			$rel_list[$x++] = $row["rel"];
+    }
+  }
+  
   return $rel_list;
 }
 
