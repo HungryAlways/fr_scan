@@ -119,7 +119,7 @@ function get_burn_down_stats($week, $day, $fdt, $rel){
   return $default_stats;
 }
 
-function update_burn_down_stats($week, $day, $fdt, $rel, $stats){
+function update_burn_down_stats($week, $day, $fdt, $rel, $stats, $orig_rel){
   global $mysql_con;
   log_update("update_burn_down_stats for: " . $week . $fdt . $rel);
 
@@ -130,9 +130,10 @@ function update_burn_down_stats($week, $day, $fdt, $rel, $stats){
   $open_major = $stats['open_major'];
   $open_minor = $stats['open_minor'];
   $closed = $stats['closed'];
-
+  $orig_rel=json_encode($orig_rel);
+  log_update($orig_rel);
   log_update("UPDATE BurnDownStats SET incoming = '$incoming',handled = '$handled',open = '$open',open_critical = '$open_critical',open_major = '$open_major',open_minor = '$open_minor',closed = '$closed' WHERE week = '$week' AND fdt = '$fdt' AND rel = '$rel'  AND wkday = '$day'");
-  mysqli_query($mysql_con, "UPDATE BurnDownStats SET incoming = '$incoming',handled = '$handled',open = '$open',open_critical = '$open_critical',open_major = '$open_major',open_minor = '$open_minor',closed = '$closed' WHERE week = '$week' AND fdt = '$fdt' AND rel = '$rel'  AND wkday = '$day'");
+  mysqli_query($mysql_con, "UPDATE BurnDownStats SET incoming = '$incoming',handled = '$handled',open = '$open',open_critical = '$open_critical',open_major = '$open_major',open_minor = '$open_minor',closed = '$closed',orig_rel='$orig_rel' WHERE week = '$week' AND fdt = '$fdt' AND rel = '$rel'  AND wkday = '$day'");
 
 }
 
@@ -210,10 +211,10 @@ function set_fr_state_to_close($prj, $fdt, $fr_list_in_web){
   return "OK";
 }
 
-function is_skipped($state, $engineer, $sev, $row, $fdt, $plan_rel, $ec, $ont_type, $business_line){
+function is_skipped($state, $engineer, $sev, $row, $fdt, $plan_rel, $ec, $ont_type, $business_line, $orig_proj){
   log_update("is_skipped: " . $row["state"] . "=" . $state  . "? " . $row["engineer"] . "=" . $engineer . "? " . $row["severity"] . "=" . $sev . "? " . $row["fdt"] . "=" . $fdt . "? " . $row["plan_rel"] . "=" . $plan_rel . "? " . $row["ont_type"] . "=" . $ont_type . "? ");
 	//if(($state == $row["state"]) && ($engineer == $row["engineer"]) && ($sev == $row["severity"])  && ($fdt == $row["fdt"])  && ($plan_rel == $row["plan_rel"]) && ($row["ont_type"] != $ont_type)  && ($row["ec"] == $ec))
-  if(($state == $row["state"]) && ($engineer == $row["engineer"]) && ($sev == $row["severity"])  && ($fdt == $row["fdt"])  && ($plan_rel == $row["plan_rel"])  && ($row["ont_type"] == $ont_type)  && ($row["business_line"] == $business_line))
+  if(($state == $row["state"]) && ($engineer == $row["engineer"]) && ($sev == $row["severity"])  && ($fdt == $row["fdt"])  && ($plan_rel == $row["plan_rel"])  && ($row["ont_type"] == $ont_type)  && ($row["business_line"] == $business_line)  && ($row["orig_proj"] == $orig_proj))
 		return true;
 	return false;
 }
@@ -259,7 +260,7 @@ function insert_fr_to_db($fr_info){
         $is_fr_exist = true;
 	  
     log_update("Updating FR : " . $fr_id . ",current state is : " . $row["state"]);
-	  if($row && is_skipped($state, $engineer, $severity, $row, $fdt, $plan_rel, $ec, $ont_type, $business_line) && ($force == "no")){ 
+	  if($row && is_skipped($state, $engineer, $severity, $row, $fdt, $plan_rel, $ec, $ont_type, $business_line, $orig_proj) && ($force == "no")){ 
 		    log_update("Skip FR : " . $fr_id);
 		    return;
 	  }
@@ -290,53 +291,6 @@ function insert_fr_to_db($fr_info){
       }
   }
 }
-
-/*
-function parse_fr_html_table($html, $prj){
-  $line_num = 0;
-  $fr_array = array();
-  $col = 0;
-  $fr_list_in_web = array();
-  $open_count = 0;
-  global $state_open_list;
-  global $fdt_filter;
-  $week = get_week_number();
-
-  foreach($html->find('tr') as $element) {
-	if($line_num == 0){
-		$line_num++;
-		continue;
-	}
-
-	$col = 0;
-    foreach($element->find('td') as $col_item){
-        if($col == 0)
-             $fr_array[$col] = $col_item->firstChild()->firstChild()->innertext;
-		else
-             $fr_array[$col] = $col_item->firstChild()->innertext;
-		$col++;
-	}
-    
-    if (in_array($fr_array[3], $state_open_list))
-        $open_count++;
-
-	insert_fr_to_db($fr_array); 
-	array_push($fr_list_in_web, $fr_array[0]);
-
-	$line_num++;
-  }
-  $line_num--;
-
-  log_update("Total $open_count open FR for $prj!");
-  $stats = get_burn_down_stats($week, $fdt_filter, $prj);
-  $stats['open'] = $open_count;
-  update_burn_down_stats($week, $fdt_filter, $prj, $stats);
-
-  echo "Total $line_num FR was added or updated for $prj!\n";
-  log_update("Total $line_num FR was added or updated for $prj!");
-  return $fr_list_in_web;
-}
-*/
 
 function get_html_page($url_fr){
   global $proxy_port;
@@ -404,6 +358,7 @@ function update_frs_for_one_project($prj){
   $cnt_open_major = 0;
   $cnt_open_minor = 0;
   $cnt_closed = 0;
+  $orig_rel_count = array();
   
   $fr_number = 0;
   if($prod == "BBDPROD")
@@ -448,7 +403,7 @@ function update_frs_for_one_project($prj){
               $fr_array[6] = $issue->fields->customfield_37100->value;
           $fr_array[7] = $issue->fields->assignee->name;
           $fr_array[8] = $issue->fields->reporter->name;
-          $fr_array[9] = $issue->fields->versions[0]->name;
+          $fr_array[9] = $issue->fields->versions[0]->name; //orig_rel
           $fr_array[10] = $issue->fields->fixVersions[0]->name;
           $fr_array[11] = $issue->fields->customfield_32017->value; //dip
           $fr_array[12] = "";  //ec
@@ -463,14 +418,37 @@ function update_frs_for_one_project($prj){
           array_push($fr_list_in_web, $fr_array[0]);      
           //var_dump($fr_list_in_web);    
           
-          if(($issue->fields->status->name == "New") || ($issue->fields->status->name == "Accepted")  || ($issue->fields->status->name == "Query")  || ($issue->fields->status->name == "Hold")){
-              $cnt_open++;
+          if(($issue->fields->status->name == "New") || ($issue->fields->status->name == "Accepted")  || ($issue->fields->status->name == "Query")  || ($issue->fields->status->name == "Hold")){	  
+			  $cnt_open++;
               if($issue->fields->customfield_27892->value == "Critical")
               	$cnt_open_critical++;
               if($issue->fields->customfield_27892->value == "Major")
               	$cnt_open_major++;
               if($issue->fields->customfield_27892->value == "Minor")
               	$cnt_open_minor++;	
+			
+			  $is_found = false;
+			  foreach($orig_rel_count as $key => $item){
+				  if($item["rel"] == $fr_array[9]){
+					  if($issue->fields->customfield_27892->value == "Critical")
+						$orig_rel_count[$key]["critical"]++;
+					  if($issue->fields->customfield_27892->value == "Major")
+						$orig_rel_count[$key]["major"]++;
+					  if($issue->fields->customfield_27892->value == "Minor")
+						$orig_rel_count[$key]["minor"]++;	
+                      $is_found = true;					
+			      }
+			  }
+			  if($is_found == false){
+				  $tmp_orig_rel=array("rel" => $fr_array[9], "critical" => 0, "major" => 0, "minor" => 0);
+				  if($issue->fields->customfield_27892->value == "Critical")
+					$tmp_orig_rel["critical"]++;
+				  if($issue->fields->customfield_27892->value == "Major")
+					$tmp_orig_rel["major"]++;
+				  if($issue->fields->customfield_27892->value == "Minor")
+					$tmp_orig_rel["minor"]++;	
+				  array_push($orig_rel_count, $tmp_orig_rel);
+			  }
           }
           else
               $cnt_closed++;
@@ -485,7 +463,9 @@ function update_frs_for_one_project($prj){
       $stats['open_major'] = $cnt_open_major;
       $stats['open_minor'] = $cnt_open_minor;
       $stats['incoming'] = 0;
-      update_burn_down_stats($week, $wkday, $fdt_filter, $prj, $stats);
+	  
+	  //log_update(json_encode($orig_rel_count));
+      update_burn_down_stats($week, $wkday, $fdt_filter, $prj, $stats, $orig_rel_count);
               
       set_fr_state_to_close($prj, $fdt_filter, $fr_list_in_web);
   }
@@ -501,7 +481,7 @@ function update_frs_for_one_project($prj){
       $stats['open_major'] = 0;
       $stats['open_minor'] = 0;
       $stats['incoming'] = 0;
-      update_burn_down_stats($week, $wkday, $fdt_filter, $prj, $stats);	  
+      update_burn_down_stats($week, $wkday, $fdt_filter, $prj, $stats, $orig_rel_count);	  
 	  
 	  set_fr_state_to_close($prj, $fdt_filter, $fr_list_in_web);
   }
