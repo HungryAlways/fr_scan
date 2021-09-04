@@ -12,7 +12,7 @@ $web_side_lnk_suf_fdt = "%22%29";
 $web_side_lnk_pre_prj = "%20AND%20fixVersion%20in%20%28%22";
 $web_side_lnk_suf_prj = "%22%29";
 $web_side_lnk_suf_open = "%20AND%20status%20in%20%28New,%20Accepted,%20Hold,%20Query%29";
-$web_side_lnk_last = "&fields=key,issuetype,status,summary,reporter,assignee,assignee,resolution,customfield_11890,versions,fixVersions,customfield_14545,customfield_37722,created,custom,customfield_37100,customfield_32017,customfield_27892,customfield_19503,customfield_37061,issuelinks&startAt=0&maxResults=1000";
+$web_side_lnk_last = "&fields=key,issuetype,status,summary,reporter,assignee,assignee,resolution,customfield_11890,versions,fixVersions,customfield_14545,customfield_37722,created,custom,customfield_37100,customfield_32017,customfield_27892,customfield_19503,customfield_37061,customfield_37499,issuelinks&startAt=0&maxResults=1000";
 
 $fdt_filter = "1252";
 $log_file = "update_fr_log.htm";
@@ -211,10 +211,10 @@ function set_fr_state_to_close($prj, $fdt, $fr_list_in_web){
   return "OK";
 }
 
-function is_skipped($state, $engineer, $sev, $row, $fdt, $plan_rel, $ec, $ont_type, $business_line, $orig_proj){
+function is_skipped($state, $engineer, $sev, $row, $fdt, $plan_rel, $ec, $ont_type, $business_line, $orig_proj,$resolution_comments){
   log_update("is_skipped: " . $row["state"] . "=" . $state  . "? " . $row["engineer"] . "=" . $engineer . "? " . $row["severity"] . "=" . $sev . "? " . $row["fdt"] . "=" . $fdt . "? " . $row["plan_rel"] . "=" . $plan_rel . "? " . $row["ont_type"] . "=" . $ont_type . "? ");
 	//if(($state == $row["state"]) && ($engineer == $row["engineer"]) && ($sev == $row["severity"])  && ($fdt == $row["fdt"])  && ($plan_rel == $row["plan_rel"]) && ($row["ont_type"] != $ont_type)  && ($row["ec"] == $ec))
-  if(($state == $row["state"]) && ($engineer == $row["engineer"]) && ($sev == $row["severity"])  && ($fdt == $row["fdt"])  && ($plan_rel == $row["plan_rel"])  && ($row["ont_type"] == $ont_type)  && ($row["business_line"] == $business_line)  && ($row["orig_proj"] == $orig_proj))
+  if(($state == $row["state"]) && ($engineer == $row["engineer"]) && ($sev == $row["severity"])  && ($fdt == $row["fdt"])  && ($plan_rel == $row["plan_rel"])  && ($row["ont_type"] == $ont_type)  && ($row["business_line"] == $business_line)  && ($row["orig_proj"] == $orig_proj)  && ($row["resolution_comments"] == $resolution_comments))
 		return true;
 	return false;
 }
@@ -237,6 +237,7 @@ function insert_fr_to_db($fr_info){
   $engineer = $fr_info[14]; 
   $ont_type = $fr_info[15]; 
   $business_line = $fr_info[16]; 
+  $resolution_comments = $fr_info[17]; 
   $rcr = "";
   global $is_skip_updating_for_same_state;
   global $state_open_list;
@@ -260,13 +261,14 @@ function insert_fr_to_db($fr_info){
         $is_fr_exist = true;
 	  
     log_update("Updating FR : " . $fr_id . ",current state is : " . $row["state"]);
-	  if($row && is_skipped($state, $engineer, $severity, $row, $fdt, $plan_rel, $ec, $ont_type, $business_line, $orig_proj) && ($force == "no")){ 
+	  if($row && is_skipped($state, $engineer, $severity, $row, $fdt, $plan_rel, $ec, $ont_type, $business_line, $orig_proj, $resolution_comments) && ($force == "no")){ 
 		    log_update("Skip FR : " . $fr_id);
 		    return;
 	  }
   }
 
   $fr_description = htmlentities($description, ENT_QUOTES);
+  $resolution_comments = htmlentities($resolution_comments, ENT_QUOTES);
   if(strlen($engineer) <= 1)
     $fr_engineer = "";
   else
@@ -274,7 +276,7 @@ function insert_fr_to_db($fr_info){
 
    if(!$is_fr_exist){
 	     log_update("INSERT INTO FrClass (fr_id, sub_date, severity, state, brief_des, fdt, ia, orig_proj, plan_rel, diph, ec, domain, engineer, dart, cor, rca_rept, changeset, rca_con, clone_info, submitter, reason, rcr, ont_type) VALUES('$fr_id', '$sub_date','$severity','$state','$fr_description','$fdt','$ia','$orig_proj','$plan_rel','$diph','$ec','$domain','$fr_engineer', '$dart', '$cor', '$rca', '$change_set', '$rca_contact', '$clone_info', '$submitter', '$reason', '$rcr', '$ont_type')", "red");
-     if(mysqli_query($mysql_con, "INSERT INTO FrClass (fr_id, sub_date, severity, state, brief_des, fdt, ia, orig_proj, plan_rel, diph, ec, domain, engineer, dart, cor, rca_rept, changeset, rca_con, clone_info, submitter, reason, rcr, ont_type, business_line) VALUES('$fr_id', '$sub_date','$severity','$state','$fr_description','$fdt','$ia','$orig_proj','$plan_rel','$diph','$ec','$domain','$fr_engineer', '$dart', '$cor', '$rca', '$change_set', '$rca_contact', '$clone_info', '$submitter', '$reason', '$rcr', '$ont_type', '$business_line')")){
+     if(mysqli_query($mysql_con, "INSERT INTO FrClass (fr_id, sub_date, severity, state, brief_des, fdt, ia, orig_proj, plan_rel, diph, ec, domain, engineer, dart, cor, rca_rept, changeset, rca_con, clone_info, submitter, reason, rcr, ont_type, business_line, resolution_comments) VALUES('$fr_id', '$sub_date','$severity','$state','$fr_description','$fdt','$ia','$orig_proj','$plan_rel','$diph','$ec','$domain','$fr_engineer', '$dart', '$cor', '$rca', '$change_set', '$rca_contact', '$clone_info', '$submitter', '$reason', '$rcr', '$ont_type', '$business_line', '$resolution_comments')")){
          log_update("insert successfully!");
      }
      else{
@@ -283,7 +285,7 @@ function insert_fr_to_db($fr_info){
   }
   else { //update
 		  log_update("UPDATE FrClass SET sub_date = '$sub_date',severity = '$severity',state = '$state',brief_des = '$fr_description',fdt = '$fdt',ia = '$ia',orig_proj = '$orig_proj',plan_rel = '$plan_rel',diph = '$diph',engineer = '$fr_engineer',submitter = '$submitter',reason = '$reason',rcr = '$rcr',ont_type='$ont_type' WHERE fr_id = '$fr_id'" , "yellow");
-      if(mysqli_query($mysql_con, "UPDATE FrClass SET sub_date = '$sub_date',severity = '$severity',state = '$state',brief_des = '$fr_description',fdt = '$fdt',ia = '$ia',orig_proj = '$orig_proj',plan_rel = '$plan_rel',diph = '$diph',engineer = '$fr_engineer',submitter = '$submitter',reason = '$reason',rcr = '$rcr',ont_type='$ont_type',business_line='$business_line' WHERE fr_id = '$fr_id'")){
+      if(mysqli_query($mysql_con, "UPDATE FrClass SET sub_date = '$sub_date',severity = '$severity',state = '$state',brief_des = '$fr_description',fdt = '$fdt',ia = '$ia',orig_proj = '$orig_proj',plan_rel = '$plan_rel',diph = '$diph',engineer = '$fr_engineer',submitter = '$submitter',reason = '$reason',rcr = '$rcr',ont_type='$ont_type',business_line='$business_line',resolution_comments='$resolution_comments' WHERE fr_id = '$fr_id'")){
           log_update("upadte successfully!");
       }
       else{
@@ -411,7 +413,8 @@ function update_frs_for_one_project($prj){
           $fr_array[14] = $issue->fields->assignee->name;  //engineer
           $fr_array[15] = $issue->fields->customfield_19503->child->value;  //board
 		  $fr_array[16] = $issue->fields->customfield_37061[0]->value;  //product
-          
+          $fr_array[17] = $issue->fields->customfield_37499;  //resolution comments
+		  
           //var_dump($fr_array);
           
 	      insert_fr_to_db($fr_array); 
